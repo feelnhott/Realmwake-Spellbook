@@ -29,10 +29,12 @@ DEFAULT_DATA = {
             "name": "Arcane Missile",
             "character": "Default Caster",
             "level": 1,
-            "domain": "Arcane",
             "school": "Evocation",
+            "domain": "Arcane",
             "casting_time": "A",
+            "duration": "Instantaneous",
             "range": "120 feet",
+            "ritual": "No",
             "components": "V, S",
             "description": "Fires energy darts at targets.",
             "prepared": True,
@@ -243,9 +245,8 @@ with st.sidebar.expander("✍️ Add New Spell"):
         spell_level = st.number_input(
             "Level", min_value=0, max_value=12, value=0
         )
-        domain = st.selectbox("Domain", ["Arcane", "Chaos", "Divine", "Nature"])
         spell_school = st.selectbox(
-            "School of Magic",
+            "School",
             [
                 "Abjuration",
                 "Conjuration",
@@ -258,8 +259,11 @@ with st.sidebar.expander("✍️ Add New Spell"):
                 "Zeitcraft",
             ],
         )
+        domain = st.selectbox("Domain", ["Arcane", "Chaos", "Divine", "Nature"])
         casting_time = st.text_input("Casting Time", value="A")
+        duration = st.text_input("Duration", value="Instantaneous")
         spell_range = st.text_input("Range", value="60 feet")
+        ritual = st.text_input("Ritual", value="No")
         components = st.text_input("Components", value="V, S")
         description = st.text_area("Description")
         is_prepared_default = st.checkbox("Prepared by default?", value=False)
@@ -279,10 +283,12 @@ with st.sidebar.expander("✍️ Add New Spell"):
                 "name": spell_name,
                 "character": assign_to_char,
                 "level": int(spell_level),
-                "domain": domain,
                 "school": spell_school,
+                "domain": domain,
                 "casting_time": casting_time,
+                "duration": duration,
                 "range": spell_range,
+                "ritual": ritual,
                 "components": components,
                 "description": description,
                 "prepared": is_prepared_default,
@@ -349,7 +355,7 @@ with head_col2:
             st.rerun()
     with act_c3:
         if st.button("🧪 Restore", key=f"reset_btn_{selected_character}full", use_container_width=True):
-            char_mana["current"] = char_mana["max"]
+            char_mana["current"] = min(char_mana["max"], char_mana["current"] + cost_input)
             save_data(data)
             st.rerun()
 
@@ -362,18 +368,24 @@ char_spells = [
 # Quick search bar always visible
 search_query = st.text_input("🔍 Quick Search by Spell Name", "")
 
-# Gather unique dynamic options for the filters
-all_domains = sorted(
-    list(set(s.get("domain", "Arcane") for s in char_spells))
-)
+# Gather unique dynamic options for all filterable fields
 all_schools = sorted(
     list(set(s.get("school", "Evocation") for s in char_spells))
+)
+all_domains = sorted(
+    list(set(s.get("domain", "Arcane") for s in char_spells))
 )
 all_times = sorted(
     list(set(s.get("casting_time", "A") for s in char_spells))
 )
+all_durations = sorted(
+    list(set(s.get("duration", "Instantaneous") for s in char_spells))
+)
 all_ranges = sorted(
     list(set(s.get("range", "60 feet") for s in char_spells))
+)
+all_rituals = sorted(
+    list(set(s.get("ritual", "No") for s in char_spells))
 )
 all_comps = sorted(
     list(set(s.get("components", "V, S") for s in char_spells))
@@ -381,41 +393,56 @@ all_comps = sorted(
 
 # Collapsible Expander for Optional / Advanced Filters
 with st.expander("🔍 Advanced Filters & Sorting (Optional)"):
-    col1, col2, col3 = st.columns(3)
-    with col1:
-        level_filter = st.multiselect(
-            "Filter by Level",
-            options=list(range(0, 13)),
-            default=list(range(0, 13)),
-        )
-    with col2:
+    # Top utility row: Prepared state and Sorting options
+    top_col1, top_col2 = st.columns(2)
+    with top_col1:
         prep_filter = st.selectbox(
             "Show Spells", ["All Spells", "Prepared Only", "Unprepared Only"]
         )
-    with col3:
+    with top_col2:
         sort_by = st.selectbox(
             "Sort Spells By", ["Level (Low to High)", "Name (A-Z)"]
         )
 
     st.markdown("---")
-    col4, col5, col6, col7, col8 = st.columns(5)
-    with col4:
-        domain_filter = st.multiselect(
-            "Domain", options=all_domains, default=all_domains
+
+    # Filters layout matching the "Add New Spell" form order:
+    # Row 1: Level, School, Domain, Casting Time
+    row1_c1, row1_c2, row1_c3, row1_c4 = st.columns(4)
+    with row1_c1:
+        level_filter = st.multiselect(
+            "Filter by Level",
+            options=list(range(0, 13)),
+            default=list(range(0, 13)),
         )
-    with col5:
+    with row1_c2:
         school_filter = st.multiselect(
             "School", options=all_schools, default=all_schools
         )
-    with col6:
+    with row1_c3:
+        domain_filter = st.multiselect(
+            "Domain", options=all_domains, default=all_domains
+        )
+    with row1_c4:
         time_filter = st.multiselect(
             "Casting Time", options=all_times, default=all_times
         )
-    with col7:
+
+    # Row 2: Duration, Range, Ritual, Components
+    row2_c1, row2_c2, row2_c3, row2_c4 = st.columns(4)
+    with row2_c1:
+        duration_filter = st.multiselect(
+            "Duration", options=all_durations, default=all_durations
+        )
+    with row2_c2:
         range_filter = st.multiselect(
             "Range", options=all_ranges, default=all_ranges
         )
-    with col8:
+    with row2_c3:
+        ritual_filter = st.multiselect(
+            "Ritual", options=all_rituals, default=all_rituals
+        )
+    with row2_c4:
         comp_filter = st.multiselect(
             "Components", options=all_comps, default=all_comps
         )
@@ -430,21 +457,29 @@ if search_query:
 
 if "level_filter" in locals():
     filtered_spells = [s for s in filtered_spells if s["level"] in level_filter]
-if "domain_filter" in locals():
-    filtered_spells = [
-        s for s in filtered_spells if s.get("domain", "Arcane") in domain_filter
-    ]
 if "school_filter" in locals():
     filtered_spells = [
         s for s in filtered_spells if s.get("school", "Evocation") in school_filter
+    ]
+if "domain_filter" in locals():
+    filtered_spells = [
+        s for s in filtered_spells if s.get("domain", "Arcane") in domain_filter
     ]
 if "time_filter" in locals():
     filtered_spells = [
         s for s in filtered_spells if s.get("casting_time", "A") in time_filter
     ]
+if "duration_filter" in locals():
+    filtered_spells = [
+        s for s in filtered_spells if s.get("duration", "Instantaneous") in duration_filter
+    ]
 if "range_filter" in locals():
     filtered_spells = [
         s for s in filtered_spells if s.get("range", "60 feet") in range_filter
+    ]
+if "ritual_filter" in locals():
+    filtered_spells = [
+        s for s in filtered_spells if s.get("ritual", "No") in ritual_filter
     ]
 if "comp_filter" in locals():
     filtered_spells = [
@@ -501,7 +536,7 @@ for i, spell in enumerate(filtered_spells):
             st.rerun()
 
         st.markdown(
-            f"**Domain:** {spell_domain_val} | **School:** {spell['school']} | **Casting Time:** {spell['casting_time']} | **Range:** {spell['range']} | **Components:** {spell['components']}"
+            f"**Domain:** {spell_domain_val} | **School:** {spell['school']} | **Casting Time:** {spell['casting_time']} | **Duration:** {spell.get('duration', 'Instantaneous')} | **Range:** {spell['range']} | **Ritual:** {spell.get('ritual', 'No')} | **Components:** {spell['components']}"
         )
         st.markdown("---")
         st.write(spell["description"])
